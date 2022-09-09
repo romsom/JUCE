@@ -228,7 +228,7 @@ public:
     /** Adds a lambda function to be called as a job.
         This will create an internal ThreadPoolJob object to encapsulate and call the lambda.
     */
-    void addJob (std::function<void()> job);
+    void addJob (std::function<void()> job, String jobName="lambda");
 
     /** Tries to remove a job from the pool.
 

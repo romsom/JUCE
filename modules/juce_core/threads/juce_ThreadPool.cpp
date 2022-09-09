@@ -161,17 +161,19 @@ void ThreadPool::addJob (std::function<ThreadPoolJob::JobStatus()> jobToRun)
     addJob (new LambdaJobWrapper (jobToRun), true);
 }
 
-void ThreadPool::addJob (std::function<void()> jobToRun)
+void ThreadPool::addJob (std::function<void()> jobToRun, String job_name)
 {
     struct LambdaJobWrapper  : public ThreadPoolJob
     {
-        LambdaJobWrapper (std::function<void()> j) : ThreadPoolJob ("lambda"), job (j) {}
-        JobStatus runJob() override      { job(); return ThreadPoolJob::jobHasFinished; }
+        LambdaJobWrapper (std::function<void()> j, String name) : ThreadPoolJob (name), job (j) {}
+        JobStatus runJob() override      { job();
+	    std::cout << "finished job()" << std::endl;
+	    return ThreadPoolJob::jobHasFinished; }
 
         std::function<void()> job;
     };
 
-    addJob (new LambdaJobWrapper (jobToRun), true);
+    addJob (new LambdaJobWrapper (jobToRun, job_name), true);
 }
 
 int ThreadPool::getNumJobs() const noexcept
@@ -347,11 +349,18 @@ ThreadPoolJob* ThreadPool::pickNextJobToRun()
 
     {
         const ScopedLock sl (lock);
+	// std::cout << "threadPool: got ScopedLock" << std::endl;
+	// bool gotLock = lock.tryEnter();
+	// if (gotLock)
+	//     lock.exit();
+	// std::cout << "threadPool: gotLock: " << gotLock << std::endl;
+	// std::cout << "jobs.size(): " << jobs.size() << std::endl;
 
         for (int i = 0; i < jobs.size(); ++i)
         {
             if (auto* job = jobs[i])
             {
+		// std::cout << "job #" << i << ": " << job->getJobName() << ": isActive? - " << job->isActive << std::endl;
                 if (! job->isActive)
                 {
                     if (job->shouldStop)
@@ -381,7 +390,9 @@ bool ThreadPool::runNextJob (ThreadPoolThread& thread)
 
         try
         {
+	    std::cout << "starting to run job: " << job->getJobName() << std::endl;
             result = job->runJob();
+	    std::cout << "finished job: " << job->getJobName() << std::endl;
         }
         catch (...)
         {
