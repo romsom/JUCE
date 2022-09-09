@@ -29,7 +29,8 @@
 
 const Icons& getIcons()
 {
-    return *ProjucerApplication::getApp().icons;
+    auto &app = ProjucerApplication::getApp();
+    return *app.icons;
 }
 
 namespace IconPathData

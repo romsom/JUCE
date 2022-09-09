@@ -683,19 +683,22 @@ public:
     //==============================================================================
     void create (const OwnedArray<LibraryModule>&) const override
     {
+	std::cout << "Xcode: iterate targets" << std::endl;
         for (auto& target : targets)
             if (target->shouldCreatePList())
                 target->infoPlistFile = getTargetFolder().getChildFile (target->getInfoPlistName());
 
         menuNibFile = getTargetFolder().getChildFile ("RecentFilesMenuTemplate.nib");
 
+	std::cout << "Xcode: create icon" << std::endl;
         createIconFile();
 
+	std::cout << "Xcode: get bundle" << std::endl;
         auto projectBundle = getProjectBundle();
         createDirectoryOrThrow (projectBundle);
 
         createObjects();
-
+	std::cout << "Xcode: write to file" << std::endl;
         build_tools::writeStreamToFile (projectBundle.getChildFile ("project.pbxproj"),
                                         [this] (MemoryOutputStream& mo) { writeProjectFile (mo); });
 
@@ -2382,13 +2385,18 @@ private:
 
     void createIconFile() const
     {
-        const auto icons = getIcons();
+	std::cout << "Xcode: create icon: getIcons" << std::endl;
+        //const auto icons = getIcons();
+	std::cout << "Xcode: create icon: icons empty?" << std::endl;
 
-        if (! build_tools::asArray (icons).isEmpty())
-        {
-            iconFile = getTargetFolder().getChildFile ("Icon.icns");
-            build_tools::writeMacIcon (icons, iconFile);
-        }
+        // if (! build_tools::asArray (icons).isEmpty())
+        // {
+	//     std::cout << "Xcode: create icon: get file" << std::endl;
+        //     iconFile = getTargetFolder().getChildFile ("Icon.icns");
+	//     std::cout << "Xcode: create icon: writeMacIcon" << std::endl;
+        //     build_tools::writeMacIcon (icons, iconFile);
+        // }
+	std::cout << "Xcode: create icon: done" << std::endl;
     }
 
     void writeWorkspaceSettings() const

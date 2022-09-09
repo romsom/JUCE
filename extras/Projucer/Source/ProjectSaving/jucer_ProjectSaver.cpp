@@ -285,7 +285,7 @@ Result ProjectSaver::saveProject (ProjectExporter* specifiedExporterToSave)
         return Result::fail ("No exporters found!\n"
                              "Please add an exporter before saving.");
     }
-
+    std::cout << "saveProject() called" << std::endl;
     auto oldProjectFile = project.getFile();
     auto modules = getModules();
 
@@ -311,23 +311,30 @@ Result ProjectSaver::saveProject (ProjectExporter* specifiedExporterToSave)
                 writeUnityScriptFile();
         }
 
+	std::cout << "saveProject() about to save project items" << std::endl;
         saveBasicProjectItems (modules, loadUserContentFromAppConfig());
+	std::cout << "saveProject() about to write projects" << std::endl;
         writeProjects (modules, specifiedExporterToSave);
+	std::cout << "saveProject() about to save project file" << std::endl;
         writeProjectFile();
 
         runPostExportScript();
 
+	std::cout << "saveProject() about to generate Readme" << std::endl;
         if (generatedCodeFolder.exists())
         {
             writeReadmeFile();
             deleteUnwantedFilesIn (generatedCodeFolder);
         }
 
-        if (errors.isEmpty())
+        if (errors.isEmpty()) {
+	    std::cout << "saveProject() returning" << std::endl;
             return Result::ok();
+	}
     }
 
     project.setFile (oldProjectFile);
+    std::cout << "saveProject() returning" << std::endl;
     return Result::fail (errors[0]);
 }
 
@@ -747,50 +754,86 @@ void ProjectSaver::writeProjects (const OwnedArray<LibraryModule>& modules, Proj
 
         for (auto& exporter : exporters)
         {
+	    std::cout << "exporter: " << exporter->getExporterIdentifierMacro() << std::endl;
             exporter->initialiseDependencyPathValues();
 
+	    std::cout << "about to create directory" << std::endl;
             if (exporter->getTargetFolder().createDirectory())
             {
                 if (exporter->isCLion())
                 {
+		    std::cout << "isCLion" << std::endl;
                     clionExporter = dynamic_cast<CLionProjectExporter*> (exporter.get());
                 }
                 else
                 {
+		    std::cout << "!isCLion" << std::endl;
+		    std::cout << "copyMainGroup" << std::endl;
                     exporter->copyMainGroupFromProject();
+		    std::cout << "copy settings" << std::endl;
                     exporter->settings = exporter->settings.createCopy();
+		    std::cout << "add search paths" << std::endl;
 
                     exporter->addToExtraSearchPaths (build_tools::RelativePath ("JuceLibraryCode", build_tools::RelativePath::projectFolder));
+		    std::cout << "copy generated files group" << std::endl;
 
                     generatedFilesGroup.state = originalGeneratedGroup.createCopy();
+		    std::cout << "add settings" << std::endl;
                     exporter->addSettingsForProjectType (project.getProjectType());
 
                     for (auto* module : modules)
                         module->addSettingsForModuleToExporter (*exporter, *this);
 
+		    std::cout << "sort" << std::endl;
                     generatedFilesGroup.sortAlphabetically (true, true);
+		    std::cout << "add" << std::endl;
                     exporter->getAllGroups().add (generatedFilesGroup);
                 }
 
-                if (ProjucerApplication::getApp().isRunningCommandLine)
+		std::cout << "isRunningCommandLine?" << std::endl;
+                if (ProjucerApplication::getApp().isRunningCommandLine) {
+		    std::cout << "saveExporter" << std::endl;
                     saveExporter (*exporter, modules);
-                else
-                    threadPool.addJob ([this, &exporter, &modules] { saveExporter (*exporter, modules); });
+		} else {
+		    std::cout << "add job to pool" << std::endl;
+		    if (exporter->isMakefile()) {
+			threadPool.addJob (([this, &exporter, &modules] { saveExporter (*exporter, modules); std::cout << "saveExporter() has returned" << std::endl;}), exporter->getUniqueName());
+		    }
+		    std::cout << "threadPool jobs: " << std::endl;
+		    for (auto n : threadPool.getNamesOfAllJobs(false)) {
+			std::cout << n << ", " << std::endl;
+		    }
+		    std::cout << "threadPool active jobs: " << std::endl;
+		    for (auto n : threadPool.getNamesOfAllJobs(true)) {
+			std::cout << n << ", " << std::endl;
+		    }
+		}
             }
             else
             {
                 addError ("Can't create folder: " + exporter->getTargetFolder().getFullPathName());
             }
+	    Thread::sleep(10);
         }
     }
     catch (build_tools::SaveError& saveError)
     {
         addError (saveError.message);
     }
+    std::cout << "waiting for pool to finish" << std::endl;
+    while (threadPool.getNumJobs() > 0) {
+	std::cout << "threadPool jobs: " << std::endl;
+	for (auto n : threadPool.getNamesOfAllJobs(false)) {
+	    std::cout << n << ", " << std::endl;
+	}
+	std::cout << "threadPool active jobs: " << std::endl;
+	for (auto n : threadPool.getNamesOfAllJobs(true)) {
+	    std::cout << n << ", " << std::endl;
+	}
+        Thread::sleep (500);
+    }
 
-    while (threadPool.getNumJobs() > 0)
-        Thread::sleep (10);
-
+    std::cout << "pool is finished" << std::endl;
     if (clionExporter != nullptr)
     {
         for (auto& exporter : exporters)
@@ -798,6 +841,7 @@ void ProjectSaver::writeProjects (const OwnedArray<LibraryModule>& modules, Proj
 
         std::cout << "Finished saving: " << clionExporter->getUniqueName() << std::endl;
     }
+    std::cout << "writeProjects returning" << std::endl;
 }
 
 void ProjectSaver::runPostExportScript()
@@ -844,7 +888,10 @@ void ProjectSaver::saveExporter (ProjectExporter& exporter, const OwnedArray<Lib
 {
     try
     {
+
+	std::cout << "saveExporter(" << exporter.getUniqueName() << "): create modules" << std::endl;
         exporter.create (modules);
+	std::cout << "saveExporter(" << exporter.getUniqueName() << "): finish" << std::endl;
 
         if (! exporter.isCLion())
         {
@@ -860,4 +907,5 @@ void ProjectSaver::saveExporter (ProjectExporter& exporter, const OwnedArray<Lib
     {
         addError (error.message);
     }
+    std::cout << "saveExporter(" << exporter.getUniqueName() << "): done" << std::endl;
 }
